@@ -1,0 +1,22 @@
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environments
+venv/
+.env
+
+# Ignore model artifacts
+models/
+*.pkl
+
+# Ignore raw/processed data files
+data/
+*.csv
+
+# Ignore logs
+*.log
+
+# VS Code and macOS system files
+.vscode/
+.DS_Store
