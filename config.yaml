@@ -1,0 +1,2 @@
+model_path: models/model.pkl
+data_path: data/raw_data.csv
