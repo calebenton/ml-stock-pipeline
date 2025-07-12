@@ -28,6 +28,10 @@ model_names = ["random_forest", "xgboost", "linear_regression"]
 
 plt.figure(figsize=(14, 6))
 
+# Plot actual stock price
+plt.plot(df.index, df['Close'], label='Actual Close', color='black', linewidth=2, linestyle='--')
+
+# Plot predictions for each model
 for name in model_names:
     model = joblib.load(f"models/{name}.pkl")
     preds = model.predict(X)
@@ -35,10 +39,11 @@ for name in model_names:
     plt.plot(df.index, preds, marker='o', linestyle='-', label=name.replace("_", " ").title())
 
 # Finalize plot
-plt.title("Model Predictions Over Time")
+plt.title("Model Predictions vs Actual AAPL Stock Price")
 plt.xlabel("Time")
-plt.ylabel("Predictions")
+plt.ylabel("Price")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
