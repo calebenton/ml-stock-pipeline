@@ -6,7 +6,7 @@ This project is an automated machine learning pipeline for hourly stock price pr
 
 - Hourly data fetching from Yahoo Finance
 - Feature engineering with rolling averages, returns, volatility, and time features
-- Multiple models supported: Random Forest, XGBoost, Logistic Regression
+- Multiple models supported: Random Forest, XGBoost, Linear Regression
 - Visualizations of model predictions vs actual prices
 - Easily extensible for more models and data sources
 
