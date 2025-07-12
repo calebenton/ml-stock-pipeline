@@ -78,6 +78,16 @@ for name, model in models.items():
     joblib.dump(model, f"models/{name}.pkl")
     print(f"  Saved model to models/{name}.pkl")
 
+    # Save predictions with actual prices
+    df_out = pd.DataFrame({
+        "Prediction_Time": X_test.index,
+        "Actual_Close": y_test,
+        "Predicted_Close": preds
+    })
+    os.makedirs("predictions", exist_ok=True)
+    df_out.to_csv(f"predictions/{name}_predicted_prices.csv", index=False)
+    print(f"  Saved predictions to predictions/{name}_predicted_prices.csv")
+
     # Append to results
     results.append({
         "Model": name,
