@@ -13,7 +13,7 @@ df['volatility'] = df['High'] - df['Low']
 X = df[['Open', 'Close', 'Volume', 'hour', 'volatility']]
 
 # Define models to load
-model_names = ["random_forest", "xgboost", "logistic_regression"]
+model_names = ["random_forest", "xgboost", "linear_regression"]
 
 plt.figure(figsize=(14, 6))
 
@@ -26,7 +26,7 @@ for name in model_names:
 # Finalize plot
 plt.title("Model Predictions Over Time")
 plt.xlabel("Time")
-plt.ylabel("Prediction (1 = Up, 0 = Down)")
+plt.ylabel("Predictions")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()

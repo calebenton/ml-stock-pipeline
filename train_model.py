@@ -1,9 +1,12 @@
 import pandas as pd
 import joblib
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
-from sklearn.linear_model import LogisticRegression
+import os
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import numpy as np
 
 # Load data
 df = pd.read_csv("data/raw_data.csv", skiprows=3, names=["Datetime", "Adj Close", "Close", "High", "Low", "Open", "Volume"])
@@ -14,25 +17,69 @@ df.set_index('Datetime', inplace=True)
 df['hour'] = df.index.hour
 df['volatility'] = df['High'] - df['Low']
 
+# Define features and target
 X = df[['Open', 'Close', 'Volume', 'hour', 'volatility']]
-y = (df['Close'].shift(-1) > df['Close']).astype(int)
+y = df['Close'].shift(-1)
 
-# Drop the last row (it has NaN label)
+# Drop last row (NaN target)
 X = X.iloc[:-1]
 y = y.iloc[:-1]
 
 # Train/test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, shuffle=False)
 
 # Define models
 models = {
-    "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
-    "xgboost": XGBClassifier(use_label_encoder=False, eval_metric='logloss'),
-    "logistic_regression": LogisticRegression(max_iter=1000)
+    "random_forest": RandomForestRegressor(
+        n_estimators=100, max_depth=None, random_state=42
+        # you can tune these params similarly
+    ),
+    "xgboost": XGBRegressor(
+        subsample=0.7,
+        n_estimators=200,
+        max_depth=3,
+        learning_rate=0.01,
+        colsample_bytree=0.7,
+        random_state=42,
+        eval_metric='rmse'
+    ),
+    "linear_regression": LinearRegression()
 }
 
-# Train and save each model
+
+# Store results for CSV
+results = []
+
+# Train, evaluate, and save each model
 for name, model in models.items():
     model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+
+    mse = mean_squared_error(y_test, preds)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_test, preds)
+    r2 = r2_score(y_test, preds)
+
+    # Print to terminal
+    print(f"\n{name.upper()} Results:")
+    print(f"  RMSE: {rmse:.4f}")
+    print(f"  MAE:  {mae:.4f}")
+    print(f"  R²:   {r2:.4f}")
+
+    # Save model
     joblib.dump(model, f"models/{name}.pkl")
-    print(f"Saved {name}.pkl")
+    print(f"  Saved model to models/{name}.pkl")
+
+    # Append to results
+    results.append({
+        "Model": name,
+        "RMSE": round(rmse, 4),
+        "MAE": round(mae, 4),
+        "R2": round(r2, 4)
+    })
+
+# Save all metrics to CSV
+os.makedirs("metrics", exist_ok=True)
+metrics_df = pd.DataFrame(results)
+metrics_df.to_csv("metrics/model_scores.csv", index=False)
+print("\nModel scores saved to metrics/model_scores.csv")
