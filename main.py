@@ -6,6 +6,23 @@ def main():
     print("Starting ML pipeline...")
     df = fetch_data()
     X = preprocess(df)
+
+    print("Columns before cleaning:", X.columns)
+
+    # Flatten MultiIndex columns by joining the tuple parts with a space,
+    # then strip and remove "AAPL"
+    X.columns = [
+        ' '.join(filter(None, col)).strip().replace("AAPL", "").strip()
+        for col in X.columns
+    ]
+
+    print("Columns after cleaning:", X.columns)
+
+    train_cols = ['Open', 'Close', 'Volume', 'hour', 'volatility', 'price_change',
+                  'percent_change', 'rolling_mean_3', 'rolling_std_3', 'prev_close', 'volume_change']
+
+    X = X[train_cols]
+
     run_prediction(X)
 
 if __name__ == '__main__':
