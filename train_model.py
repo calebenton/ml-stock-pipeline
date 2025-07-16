@@ -34,7 +34,7 @@ X = X.iloc[:-1]
 y = y.iloc[:-1]
 
 # Train/test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, shuffle=False)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, shuffle=False)
 
 # Define models
 models = {
@@ -101,3 +101,4 @@ os.makedirs("metrics", exist_ok=True)
 metrics_df = pd.DataFrame(results)
 metrics_df.to_csv("metrics/model_scores.csv", index=False)
 print("\nModel scores saved to metrics/model_scores.csv")
+print(f"Training samples: {len(X_train)}, Testing samples: {len(X_test)}")
