@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine, text
+from sqlalchemy.dialects.postgresql import insert
 import joblib
 import pandas as pd
 import os
@@ -15,6 +16,19 @@ def create_prediction_table_if_not_exists(engine, table_name):
         conn.execute(text(create_table_sql))
         conn.commit()
     print(f"Ensured table '{table_name}' exists.")
+
+def upsert_df(df, table_name, engine):
+    from sqlalchemy import Table, MetaData
+
+    metadata = MetaData()  # No bind here
+    table = Table(table_name, metadata, autoload_with=engine)  # Pass engine to autoload_with
+
+    with engine.connect() as conn:
+        for _, row in df.iterrows():
+            stmt = insert(table).values(**row.to_dict())
+            stmt = stmt.on_conflict_do_nothing(index_elements=['prediction_time'])
+            conn.execute(stmt)
+        conn.commit()
 
 def run_prediction(X):
     model_names = ["random_forest", "xgboost", "linear_regression"]
@@ -45,20 +59,6 @@ def run_prediction(X):
         df_preds.to_csv(pred_filename, index=False)
         print(f"Saved {name} predictions to {pred_filename}")
 
-        # Safely filter out existing timestamps to avoid duplicates
-        existing_times = pd.read_sql(f"SELECT prediction_time FROM {table_name}", engine)
-
-        if not existing_times.empty and 'prediction_time' in existing_times.columns:
-            df_preds = df_preds[~df_preds["prediction_time"].isin(existing_times["prediction_time"])]
-
-        if not df_preds.empty:
-            df_preds.to_sql(
-                table_name,
-                engine,
-                if_exists="append",
-                index=False,
-                method='multi'
-            )
-            print(f"Appended new predictions to Postgres table '{table_name}'")
-        else:
-            print(f"No new predictions to append for {name}")
+        # Use upsert function instead of filtering & appending to avoid duplicate key errors
+        upsert_df(df_preds, table_name, engine)
+        print(f"Upserted predictions to Postgres table '{table_name}'")
