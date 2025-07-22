@@ -23,6 +23,10 @@ def main():
 
     X = X[train_cols]
 
+    # ✅ Save to CSV so it can be used elsewhere (e.g., PostgreSQL)
+    X.to_csv("data/processed_features.csv", index=False)
+    print("✅ Saved preprocessed features to data/processed_features.csv")
+
     run_prediction(X)
 
 if __name__ == '__main__':
