@@ -13,24 +13,26 @@ def create_prediction_table_if_not_exists(engine, table_name):
     );
     """
     with engine.connect() as conn:
-        conn.execute(text(create_table_sql))
-        conn.commit()
+        conn.execute(text(create_table_sql))  # ✅ Removed conn.commit()
     print(f"Ensured table '{table_name}' exists.")
 
 def upsert_df(df, table_name, engine):
     from sqlalchemy import Table, MetaData
 
-    metadata = MetaData()  # No bind here
-    table = Table(table_name, metadata, autoload_with=engine)  # Pass engine to autoload_with
+    metadata = MetaData()
+    table = Table(table_name, metadata, autoload_with=engine)
 
     with engine.connect() as conn:
         for _, row in df.iterrows():
             stmt = insert(table).values(**row.to_dict())
             stmt = stmt.on_conflict_do_nothing(index_elements=['prediction_time'])
             conn.execute(stmt)
-        conn.commit()
+        # ✅ Removed conn.commit()
+
 
 def run_prediction(X):
+    from sqlalchemy.exc import ProgrammingError
+
     model_names = ["random_forest", "xgboost", "linear_regression"]
     engine = create_engine("postgresql+psycopg2://calebbenton@localhost:5432/ml_pipeline")
 
@@ -48,17 +50,40 @@ def run_prediction(X):
         preds = model.predict(X)
 
         print(f"\n{name.upper()} predictions:\n", preds)
+        print(f"{name} prediction time range:", X.index.min(), "to", X.index.max())
 
         df_preds = pd.DataFrame({
             "prediction_time": pd.to_datetime(X.index),
             "predicted_close": preds
         })
 
-        # Save CSV file as before
+        # Save CSV
         pred_filename = f"predictions/{name}_predicted_prices_{timestamp}.csv"
         df_preds.to_csv(pred_filename, index=False)
         print(f"Saved {name} predictions to {pred_filename}")
 
-        # Use upsert function instead of filtering & appending to avoid duplicate key errors
+        # Insert/update predictions
         upsert_df(df_preds, table_name, engine)
         print(f"Upserted predictions to Postgres table '{table_name}'")
+
+        # Step 1: Add 'actual_close' column if missing
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(f"""
+                    ALTER TABLE {table_name}
+                    ADD COLUMN IF NOT EXISTS actual_close FLOAT;
+                """))
+                print(f"Ensured 'actual_close' column exists in {table_name}")
+            except ProgrammingError as e:
+                print(f"Error adding 'actual_close' column to {table_name}: {e}")
+
+        # Step 2: Update actual_close values by joining with apple_stock_data
+        with engine.connect() as conn:
+            update_sql = f"""
+            UPDATE {table_name} p
+            SET actual_close = a."Close"
+            FROM apple_stock_data a
+            WHERE p.prediction_time::timestamp(0) = a."Datetime"::timestamp(0);
+            """
+            conn.execute(text(update_sql))
+            print(f"Updated 'actual_close' values in {table_name}")
