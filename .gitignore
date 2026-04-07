@@ -20,3 +20,4 @@ data/
 # VS Code and macOS system files
 .vscode/
 .DS_Store
+.venv/

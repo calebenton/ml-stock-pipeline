@@ -12,8 +12,8 @@ def create_prediction_table_if_not_exists(engine, table_name):
         predicted_close FLOAT
     );
     """
-    with engine.connect() as conn:
-        conn.execute(text(create_table_sql))  # ✅ Removed conn.commit()
+    with engine.begin() as conn:
+        conn.execute(text(create_table_sql))
     print(f"Ensured table '{table_name}' exists.")
 
 def upsert_df(df, table_name, engine):
@@ -22,12 +22,11 @@ def upsert_df(df, table_name, engine):
     metadata = MetaData()
     table = Table(table_name, metadata, autoload_with=engine)
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         for _, row in df.iterrows():
             stmt = insert(table).values(**row.to_dict())
             stmt = stmt.on_conflict_do_nothing(index_elements=['prediction_time'])
             conn.execute(stmt)
-        # ✅ Removed conn.commit()
 
 
 def run_prediction(X):
@@ -67,18 +66,18 @@ def run_prediction(X):
         print(f"Upserted predictions to Postgres table '{table_name}'")
 
         # Step 1: Add 'actual_close' column if missing
-        with engine.connect() as conn:
-            try:
+        try:
+            with engine.begin() as conn:
                 conn.execute(text(f"""
                     ALTER TABLE {table_name}
                     ADD COLUMN IF NOT EXISTS actual_close FLOAT;
                 """))
-                print(f"Ensured 'actual_close' column exists in {table_name}")
-            except ProgrammingError as e:
-                print(f"Error adding 'actual_close' column to {table_name}: {e}")
+            print(f"Ensured 'actual_close' column exists in {table_name}")
+        except ProgrammingError as e:
+            print(f"Error adding 'actual_close' column to {table_name}: {e}")
 
         # Step 2: Update actual_close values by joining with apple_stock_data
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             update_sql = f"""
             UPDATE {table_name} p
             SET actual_close = a."Close"
